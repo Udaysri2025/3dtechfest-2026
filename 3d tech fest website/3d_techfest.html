@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>TECHFEST 2026 | The Future Is Now</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --cyan: #00e5ff;
+      --purple: #b44dff;
+      --gold: #ffb700;
+      --pink: #ff4da6;
+      --bg: #050510;
+      --surface: rgba(20, 20, 50, 0.6);
+      --font: 'Segoe UI', 'Inter', system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      font-family: var(--font);
+      overflow-x: hidden;
+      cursor: crosshair;
+      -webkit-tap-highlight-color: transparent;
+      height: 100vh; 
+      scroll-behavior: smooth;
+    }
+
+    /* SCROLL CONTAINER */
+    .scroll-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100vh;
+      overflow-y: auto;
+      scroll-snap-type: y mandatory;
+      -webkit-overflow-scrolling: touch;
+    }
+    .scroll-container::-webkit-scrollbar {
+      width: 0;
+    }
+
+    /* SECTIONS - each is a snap point */
+    .section {
+      scroll-snap-align: start;
+      height: 100vh;
+      width: 100%;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none; /* let canvas clicks through */
+    }
+
+    /* Canvas fixed */
+    #three-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* UI overlay layer */
+    .ui-layer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    /* Navigation */
+    .nav {
+      position: fixed;
+      top: 20px;
+      left: 0;
+      right: 0;
+      z-index: 30;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 30px;
+      pointer-events: all;
+    }
+    .logo {
+      font-size: 1.8rem;
+      font-weight: 900;
+      letter-spacing: 0.15em;
+      color: #fff;
+      text-shadow: 0 0 30px var(--cyan), 0 0 60px var(--purple);
+      text-transform: uppercase;
+    }
+    .logo span { color: var(--cyan); }
+    .hamburger {
+      display: none;
+      flex-direction: column;
+      gap: 6px;
+      cursor: pointer;
+      padding: 10px;
+      z-index: 35;
+    }
+    .hamburger div {
+      width: 28px;
+      height: 3px;
+      background: var(--cyan);
+      box-shadow: 0 0 12px var(--cyan);
+      transition: all 0.3s ease;
+    }
+    .hamburger.active div:nth-child(1) { transform: rotate(45deg) translate(6px,6px); }
+    .hamburger.active div:nth-child(2) { opacity: 0; }
+    .hamburger.active div:nth-child(3) { transform: rotate(-45deg) translate(6px,-6px); }
+
+    .desktop-nav {
+      display: flex;
+      gap: 28px;
+      font-weight: 600;
+    }
+    .desktop-nav a {
+      color: rgba(255,255,255,0.75);
+      text-decoration: none;
+      letter-spacing: 0.05em;
+      font-size: 0.9rem;
+      transition: all 0.3s ease;
+      text-shadow: 0 0 10px transparent;
+    }
+    .desktop-nav a:hover, .desktop-nav a.active {
+      color: var(--cyan);
+      text-shadow: 0 0 15px var(--cyan);
+    }
+
+    .mobile-menu {
+      position: fixed;
+      top: 0;
+      right: -100%;
+      width: 75%;
+      max-width: 320px;
+      height: 100%;
+      background: rgba(8,8,20,0.95);
+      backdrop-filter: blur(20px);
+      z-index: 32;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 28px;
+      transition: right 0.4s cubic-bezier(0.4,0,0.2,1);
+      pointer-events: all;
+    }
+    .mobile-menu.open { right: 0; }
+    .mobile-menu a {
+      font-size: 1.5rem;
+      color: #fff;
+      text-decoration: none;
+      letter-spacing: 0.1em;
+      font-weight: 600;
+    }
+
+    /* Dots navigation */
+    .dot-nav {
+      position: fixed;
+      right: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 20;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      pointer-events: all;
+    }
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.25);
+      cursor: pointer;
+      transition: all 0.4s ease;
+      border: 2px solid transparent;
+    }
+    .dot.active {
+      background: var(--cyan);
+      box-shadow: 0 0 18px var(--cyan), 0 0 36px var(--cyan);
+      transform: scale(1.5);
+      border-color: rgba(255,255,255,0.5);
+    }
+
+    /* Section content */
+    .section-content {
+      pointer-events: all;
+      text-align: center;
+      max-width: 800px;
+      padding: 20px;
+      transition: all 0.8s cubic-bezier(0.4,0,0.2,1);
+    }
+    .section-content h1 {
+      font-size: clamp(2.4rem, 8vw, 6rem);
+      font-weight: 900;
+      color: #fff;
+      text-shadow: 0 0 40px var(--cyan), 0 0 80px var(--cyan), 0 0 120px var(--purple);
+      text-transform: uppercase;
+      line-height: 1.1;
+    }
+    .section-content h2 {
+      font-size: clamp(1.8rem, 5vw, 3.2rem);
+      font-weight: 700;
+      color: #fff;
+      text-shadow: 0 0 30px var(--purple);
+    }
+    .section-content p {
+      font-size: 1.1rem;
+      color: rgba(255,255,255,0.75);
+      margin: 16px 0;
+      line-height: 1.6;
+    }
+    .accent {
+      color: var(--cyan);
+      font-size: 0.45em;
+      letter-spacing: 0.2em;
+      display: block;
+      margin-bottom: 10px;
+    }
+    .btn {
+      display: inline-block;
+      padding: 14px 36px;
+      border: 2px solid var(--cyan);
+      border-radius: 50px;
+      color: #fff;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      background: rgba(0,229,255,0.08);
+      box-shadow: 0 0 30px rgba(0,229,255,0.3), inset 0 0 25px rgba(0,229,255,0.05);
+      transition: all 0.4s ease;
+      cursor: pointer;
+      text-decoration: none;
+      margin-top: 20px;
+    }
+    .btn:hover {
+      background: rgba(0,229,255,0.2);
+      box-shadow: 0 0 50px rgba(0,229,255,0.6);
+      transform: translateY(-3px);
+    }
+    .event-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: center;
+      margin-top: 24px;
+    }
+    .event-pill {
+      padding: 10px 20px;
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 50px;
+      color: #fff;
+      background: rgba(255,255,255,0.03);
+      backdrop-filter: blur(4px);
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    .event-pill:hover {
+      border-color: var(--cyan);
+      box-shadow: 0 0 20px var(--cyan);
+      transform: translateY(-2px);
+    }
+
+    .loading-screen {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      z-index: 999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.8s ease;
+      pointer-events: all;
+    }
+    .loading-bar {
+      width: 200px;
+      height: 4px;
+      background: rgba(255,255,255,0.1);
+      margin-top: 30px;
+    }
+    .loading-progress {
+      height: 100%;
+      width: 0%;
+      background: var(--cyan);
+      box-shadow: 0 0 20px var(--cyan);
+      transition: width 0.1s linear;
+    }
+
+    @media (max-width: 768px) {
+      .desktop-nav { display: none; }
+      .hamburger { display: flex; }
+      .logo { font-size: 1.2rem; }
+      .dot-nav { right: 8px; gap: 10px; }
+      .dot { width: 8px; height: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="loading-screen" id="loading">
+    <h1 style="color:var(--cyan); text-shadow:0 0 40px var(--cyan);">TECHFEST 2026</h1>
+    <div class="loading-bar"><div class="loading-progress" id="progress"></div></div>
+  </div>
+
+  <canvas id="three-canvas"></canvas>
+
+  <div class="ui-layer">
+    <nav class="nav">
+      <div class="logo">TECH<span>FEST</span> 2026</div>
+      <div class="desktop-nav" id="desktopNav">
+        <a href="#home" class="active">Home</a>
+        <a href="#about">About</a>
+        <a href="#events">Events</a>
+        <a href="#speakers">Speakers</a>
+        <a href="#register">Register</a>
+      </div>
+      <div class="hamburger" id="hamburger">
+        <div></div><div></div><div></div>
+      </div>
+    </nav>
+    <div class="mobile-menu" id="mobileMenu">
+      <a href="#home">Home</a>
+      <a href="#about">About</a>
+      <a href="#events">Events</a>
+      <a href="#speakers">Speakers</a>
+      <a href="#register">Register</a>
+    </div>
+
+    <div class="dot-nav" id="dotNav">
+      <div class="dot active" data-section="0"></div>
+      <div class="dot" data-section="1"></div>
+      <div class="dot" data-section="2"></div>
+      <div class="dot" data-section="3"></div>
+      <div class="dot" data-section="4"></div>
+    </div>
+  </div>
+
+  <div class="scroll-container" id="scrollContainer">
+    <div class="section" id="home">
+      <div class="section-content">
+        <h1><span class="accent">Dec 15-17, 2026</span>TECHFEST 2026</h1>
+        <p style="color:var(--gold); letter-spacing:0.1em;">WHERE TECHNOLOGY MEETS TOMORROW</p>
+      </div>
+    </div>
+    <div class="section" id="about">
+      <div class="section-content">
+        <h2>Explore the Future</h2>
+        <p>Three days of groundbreaking talks, workshops, and hands-on experiences. Join 5,000+ visionaries shaping the next decade.</p>
+      </div>
+    </div>
+    <div class="section" id="events">
+      <div class="section-content">
+        <h2>Events & Workshops</h2>
+        <div class="event-pills">
+          <span class="event-pill">🤖 AI Summit</span>
+          <span class="event-pill">🌐 Web3 Expo</span>
+          <span class="event-pill">🎮 Game Dev Jam</span>
+          <span class="event-pill">🔬 Robotics Lab</span>
+          <span class="event-pill">💡 Startup Pitch</span>
+          <span class="event-pill">🎨 Creative Tech</span>
+        </div>
+      </div>
+    </div>
+    <div class="section" id="speakers">
+      <div class="section-content">
+        <h2>Visionary Speakers</h2>
+        <p>Hear from industry pioneers, researchers, and creators.</p>
+        <div style="display:flex; flex-wrap:wrap; gap:16px; justify-content:center; margin-top:20px;">
+          <div class="event-pill">Dr. Jane Smith (AI)</div>
+          <div class="event-pill">Mark Lee (Robotics)</div>
+          <div class="event-pill">Elena Torres (VR)</div>
+          <div class="event-pill">Raj Patel (Blockchain)</div>
+        </div>
+      </div>
+    </div>
+    <div class="section" id="register">
+      <div class="section-content">
+        <h2>Secure Your Spot</h2>
+        <p>Early bird tickets available now. Don't miss the future.</p>
+        <a href="#" class="btn" id="registerBtn">Register Now</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+  <script>
+    (function() {
+      // ── DOM Elements ─────────────────────
+      const canvas = document.getElementById('three-canvas');
+      const scrollContainer = document.getElementById('scrollContainer');
+      const sections = document.querySelectorAll('.section');
+      const dots = document.querySelectorAll('.dot');
+      const desktopLinks = document.querySelectorAll('.desktop-nav a');
+      const mobileLinks = document.querySelectorAll('.mobile-menu a');
+      const hamburger = document.getElementById('hamburger');
+      const mobileMenu = document.getElementById('mobileMenu');
+      const registerBtn = document.getElementById('registerBtn');
+      const loadingScreen = document.getElementById('loading');
+      const progressBar = document.getElementById('progress');
+
+      // ── Loading simulation ──────────────
+      let loadProgress = 0;
+      const loadInterval = setInterval(() => {
+        loadProgress += Math.random() * 15;
+        if(loadProgress >= 100) {
+          loadProgress = 100;
+          clearInterval(loadInterval);
+          setTimeout(() => {
+            loadingScreen.style.opacity = '0';
+            setTimeout(() => loadingScreen.style.display = 'none', 800);
+          }, 200);
+        }
+        progressBar.style.width = loadProgress + '%';
+      }, 80);
+
+      // ── Three.js Setup ──────────────────
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.2;
+
+      const scene = new THREE.Scene();
+      scene.fog = new THREE.FogExp2('#050510', 0.0002);
+      const camera = new THREE.PerspectiveCamera(55, window.innerWidth/window.innerHeight, 0.1, 100);
+      camera.position.set(0, 2, 14);
+
+      // ── Lights ──────────────────────────
+      const ambient = new THREE.AmbientLight('#1a1a3a', 2);
+      scene.add(ambient);
+      const dirLight = new THREE.DirectionalLight('#ffffff', 3);
+      dirLight.position.set(5, 10, 5);
+      dirLight.castShadow = true;
+      dirLight.shadow.mapSize.set(1024,1024);
+      scene.add(dirLight);
+      const pointLight1 = new THREE.PointLight('#00e5ff', 50, 20);
+      pointLight1.position.set(4,3,4);
+      scene.add(pointLight1);
+      const pointLight2 = new THREE.PointLight('#b44dff', 40, 20);
+      pointLight2.position.set(-4,-1,-4);
+      scene.add(pointLight2);
+
+      // ── Ground ─────────────────────────
+      const grid = new THREE.PolarGridHelper(18, 64, 48, 256, '#1a1a3a','#1a1a3a');
+      grid.position.y = -6;
+      scene.add(grid);
+
+      // ── Central torus knot (always visible) ──
+      const knotGeo = new THREE.TorusKnotGeometry(2.2, 0.55, 200, 32, 2, 3);
+      const knotMat = new THREE.MeshStandardMaterial({ color:'#1a1a40', roughness:0.18, metalness:0.95 });
+      const torusKnot = new THREE.Mesh(knotGeo, knotMat);
+      torusKnot.castShadow = torusKnot.receiveShadow = true;
+      scene.add(torusKnot);
+
+      // Wireframe shell
+      const shellGeo = new THREE.TorusKnotGeometry(2.45, 0.62, 100, 20, 2, 3);
+      const shellMat = new THREE.MeshBasicMaterial({ color:'#00e5ff', wireframe:true, transparent:true, opacity:0.3 });
+      const shell = new THREE.Mesh(shellGeo, shellMat);
+      scene.add(shell);
+
+      // ── Particles ──────────────────────
+      const particleCount = window.innerWidth < 768 ? 600 : 1500;
+      const particlesGeo = new THREE.BufferGeometry();
+      const posArray = new Float32Array(particleCount * 3);
+      const colArray = new Float32Array(particleCount * 3);
+      const basePos = new Float32Array(particleCount * 3);
+      const colors = ['#00e5ff','#b44dff','#ffb700','#ff4da6'];
+      for(let i=0; i<particleCount; i++) {
+        const r = 4 + Math.random()*14;
+        const theta = Math.random()*Math.PI*2;
+        const phi = Math.acos(2*Math.random()-1);
+        const x = r*Math.sin(phi)*Math.cos(theta);
+        const y = r*Math.sin(phi)*Math.sin(theta);
+        const z = r*Math.cos(phi);
+        posArray[i*3]=x; posArray[i*3+1]=y; posArray[i*3+2]=z;
+        basePos[i*3]=x; basePos[i*3+1]=y; basePos[i*3+2]=z;
+        const col = new THREE.Color(colors[Math.floor(Math.random()*colors.length)]);
+        colArray[i*3]=col.r; colArray[i*3+1]=col.g; colArray[i*3+2]=col.b;
+      }
+      particlesGeo.setAttribute('position', new THREE.BufferAttribute(posArray,3));
+      particlesGeo.setAttribute('color', new THREE.BufferAttribute(colArray,3));
+      const particlesMat = new THREE.PointsMaterial({ size:0.05, vertexColors:true, blending:THREE.AdditiveBlending, depthWrite:false });
+      const particles = new THREE.Points(particlesGeo, particlesMat);
+      scene.add(particles);
+
+      // ── Section-specific 3D groups (fade in/out) ──
+      const sectionGroups = [];
+      // About: network of nodes
+      const aboutGroup = new THREE.Group();
+      for(let i=0; i<30; i++) {
+        const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.12,8,8), new THREE.MeshBasicMaterial({color:'#b44dff'}));
+        sphere.position.set((Math.random()-0.5)*12, (Math.random()-0.5)*8, (Math.random()-0.5)*8);
+        aboutGroup.add(sphere);
+      }
+      scene.add(aboutGroup);
+      sectionGroups.push({ group: aboutGroup, start:0.15, end:0.45 });
+
+      // Events: floating cubes in orbit
+      const eventsGroup = new THREE.Group();
+      for(let i=0; i<8; i++) {
+        const cube = new THREE.Mesh(new THREE.BoxGeometry(0.4,0.4,0.4), new THREE.MeshStandardMaterial({color:0x00e5ff, emissive:0x00e5ff, emissiveIntensity:0.5}));
+        cube.userData = { orbitR: 5+Math.random()*2, speed: 0.3+Math.random()*0.5, phase: Math.random()*Math.PI*2 };
+        eventsGroup.add(cube);
+      }
+      scene.add(eventsGroup);
+      sectionGroups.push({ group: eventsGroup, start:0.35, end:0.65 });
+
+      // Speakers: ring of icosahedrons
+      const speakersGroup = new THREE.Group();
+      for(let i=0; i<6; i++) {
+        const ico = new THREE.Mesh(new THREE.IcosahedronGeometry(0.5,0), new THREE.MeshStandardMaterial({color:'#ffb700', emissive:'#ffb700', emissiveIntensity:0.6}));
+        ico.position.set(Math.cos(i/6*Math.PI*2)*4.5, 0, Math.sin(i/6*Math.PI*2)*4.5);
+        speakersGroup.add(ico);
+      }
+      scene.add(speakersGroup);
+      sectionGroups.push({ group: speakersGroup, start:0.55, end:0.85 });
+
+      // Register: portal torus
+      const registerGroup = new THREE.Group();
+      const portalGeo = new THREE.TorusGeometry(2.8, 0.12, 32, 64);
+      const portalMat = new THREE.MeshStandardMaterial({ color:'#ff4da6', emissive:'#ff4da6', emissiveIntensity:0.8 });
+      const portal = new THREE.Mesh(portalGeo, portalMat);
+      registerGroup.add(portal);
+      scene.add(registerGroup);
+      sectionGroups.push({ group: registerGroup, start:0.75, end:1.0 });
+
+      // ── State ───────────────────────────
+      let scrollProgress = 0;
+      let targetProgress = 0;
+      let activeSection = 0;
+      const totalSections = 5;
+      let mouseX = 0, mouseY = 0;
+      let targetMouseX = 0, targetMouseY = 0;
+      let time = 0;
+      const clock = new THREE.Clock();
+
+      // ── Scroll handling ─────────────────
+      function updateScroll() {
+        const scrollTop = scrollContainer.scrollTop;
+        const maxScroll = scrollContainer.scrollHeight - window.innerHeight;
+        targetProgress = maxScroll > 0 ? Math.max(0, Math.min(1, scrollTop / maxScroll)) : 0;
+        // determine active section
+        const sectionHeight = 1/totalSections;
+        activeSection = Math.min(totalSections-1, Math.floor(targetProgress / sectionHeight + 0.3));
+      }
+      scrollContainer.addEventListener('scroll', updateScroll, {passive:true});
+
+      // Snap after scroll stop
+      let snapTimeout;
+      scrollContainer.addEventListener('scroll', ()=>{
+        clearTimeout(snapTimeout);
+        snapTimeout = setTimeout(snapToNearest, 150);
+      });
+      function snapToNearest() {
+        const sectionHeight = window.innerHeight;
+        const index = Math.round(scrollContainer.scrollTop / sectionHeight);
+        scrollContainer.scrollTo({ top: index * sectionHeight, behavior: 'smooth' });
+      }
+
+      // ── Mouse ───────────────────────────
+      window.addEventListener('mousemove', e => {
+        targetMouseX = (e.clientX / window.innerWidth)*2-1;
+        targetMouseY = -(e.clientY / window.innerHeight)*2+1;
+      });
+      window.addEventListener('touchmove', e => {
+        if(e.touches.length) {
+          targetMouseX = (e.touches[0].clientX / window.innerWidth)*2-1;
+          targetMouseY = -(e.touches[0].clientY / window.innerHeight)*2+1;
+        }
+      });
+
+      // ── Navigation click ────────────────
+      function navigateTo(index) {
+        scrollContainer.scrollTo({ top: index * window.innerHeight, behavior: 'smooth' });
+      }
+      dots.forEach((dot,i) => dot.addEventListener('click', ()=> navigateTo(i)));
+      desktopLinks.forEach((link,i) => link.addEventListener('click', (e)=>{
+        e.preventDefault(); navigateTo(i);
+      }));
+      mobileLinks.forEach((link,i) => link.addEventListener('click', (e)=>{
+        e.preventDefault(); navigateTo(i);
+        mobileMenu.classList.remove('open');
+        hamburger.classList.remove('active');
+      }));
+      hamburger.addEventListener('click', ()=>{
+        hamburger.classList.toggle('active');
+        mobileMenu.classList.toggle('open');
+      });
+
+      if(registerBtn) registerBtn.addEventListener('click', e => {
+        e.preventDefault();
+        alert('🎉 Welcome to TECHFEST 2026! Early bird registration confirmed.');
+      });
+
+      // ── Animation ───────────────────────
+      function animate() {
+        requestAnimationFrame(animate);
+        const dt = Math.min(clock.getDelta(), 0.1);
+        time += dt;
+
+        scrollProgress += (targetProgress - scrollProgress) * 4 * dt;
+        mouseX += (targetMouseX - mouseX) * 6 * dt;
+        mouseY += (targetMouseY - mouseY) * 6 * dt;
+
+        // Camera
+        const camAngle = scrollProgress * Math.PI * 1.6 - 0.4;
+        const dist = 14 - scrollProgress * 5;
+        const camY = 2.5 + scrollProgress * 2 + Math.sin(scrollProgress*Math.PI)*1.5;
+        camera.position.x += (Math.cos(camAngle)*dist + mouseX*2 - camera.position.x) * 3 * dt;
+        camera.position.z += (Math.sin(camAngle)*dist - camera.position.z) * 3 * dt;
+        camera.position.y += (camY + mouseY*1.8 - camera.position.y) * 3 * dt;
+        camera.lookAt(mouseX*0.8, -0.5+mouseY*0.6, mouseX*0.5);
+
+        // Central knot
+        torusKnot.rotation.x += 0.3*dt; torusKnot.rotation.y += 0.4*dt;
+        shell.rotation.copy(torusKnot.rotation);
+
+        // Particles
+        const posAttr = particlesGeo.attributes.position;
+        for(let i=0; i<particleCount; i++) {
+          const bx = basePos[i*3], by = basePos[i*3+1], bz = basePos[i*3+2];
+          const fx = Math.sin(time*0.6 + i*0.03)*0.4;
+          const fy = Math.cos(time*0.55 + i*0.04)*0.5;
+          const fz = Math.sin(time*0.5 + i*0.035)*0.4;
+          posAttr.array[i*3] = bx + fx;
+          posAttr.array[i*3+1] = by + fy;
+          posAttr.array[i*3+2] = bz + fz;
+        }
+        posAttr.needsUpdate = true;
+
+        // Section groups visibility and animation
+        sectionGroups.forEach(({group, start, end}) => {
+          let visibility = 0;
+          if(scrollProgress >= start && scrollProgress <= end) {
+            const mid = (start+end)/2;
+            const range = (end-start)/2;
+            visibility = 1 - Math.abs(scrollProgress - mid) / range;
+            visibility = Math.max(0, Math.min(1, visibility));
+          }
+          group.children.forEach(child => {
+            child.visible = visibility > 0.05;
+            if(child.material && child.material.opacity !== undefined) {
+              child.material.opacity = visibility * 0.8;
+            }
+          });
+          // specific animations
+          if(group === eventsGroup) {
+            group.children.forEach(cube => {
+              if(cube.userData.orbitR) {
+                const ang = time * cube.userData.speed + cube.userData.phase;
+                cube.position.x = Math.cos(ang) * cube.userData.orbitR;
+                cube.position.z = Math.sin(ang) * cube.userData.orbitR;
+                cube.position.y = Math.sin(time*1.2 + cube.userData.phase)*0.8;
+              }
+            });
+          } else if(group === speakersGroup) {
+            group.rotation.y += 0.5 * dt;
+          } else if(group === registerGroup) {
+            group.children[0].rotation.z += 0.4 * dt;
+            group.children[0].scale.setScalar(1 + Math.sin(time*2)*0.1 + scrollProgress*0.3);
+          }
+        });
+
+        // UI updates
+        dots.forEach((dot,i) => dot.classList.toggle('active', i===activeSection));
+        desktopLinks.forEach((link,i) => link.classList.toggle('active', i===activeSection));
+
+        renderer.render(scene, camera);
+      }
+
+      window.addEventListener('resize', () => {
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        camera.aspect = window.innerWidth/window.innerHeight;
+        camera.updateProjectionMatrix();
+      });
+
+      updateScroll();
+      requestAnimationFrame(animate);
+    })();
+  </script>
+</body>
+</html>
